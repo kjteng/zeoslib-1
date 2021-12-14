@@ -504,13 +504,17 @@ begin
     end
   else
     if Password > ''  then
-      begin
+      begin  //for sqlite SEE
+        ExecuteImmediat('PRAGMA activate_extensions='
+                             +QuotedStr('see-7bb07b8d471d642e'), lcExecute);
         S := lowercase(Info.Values['keyfmt']);
         if (S <> 'hexkey') and (S<>'textkey') then s := 'key';
         ExecuteImmediat('PRAGMA '+ S + '='+ QuotedStr(password), lcExecute)
         { for zeoslib 7.2
         Stmt := TZSQLiteStatement.Create(GetPlainDriver, Self, Info, FHandle)
                    as IZStatement; // <-- Note the IZStatement interface here
+        Stmt.ExecuteUpdate('PRAGMA activate_extensions='
+                                +QuotedStr('see-7bb07b8d471d642e'), lcExecute);
         Stmt.ExecuteUpdate('PRAGMA '+ S + '='+ QuotedStr(password), lcExecute);
         }
       end
