@@ -490,20 +490,39 @@ begin
   if DriverManager.HasLoggingListener then
     DriverManager.LogMessage(lcConnect, URL.Protocol, FLogMessage);
   { Turn on encryption if requested }
-  if StrToBoolEx(Info.Values[ConnProps_Encrypted]) and Assigned(FPlainDriver.sqlite3_key) and (Password <> '') then begin
-    SQL := {$IFDEF UNICODE}UTF8String{$ENDIF}(Password);
-    TmpInt := FPlainDriver.sqlite3_key(FHandle, Pointer(SQL), Length(SQL));
-    if TmpInt <> SQLITE_OK then
-      HandleErrorOrWarning(lcConnect, TmpInt, 'SQLite.Key', IImmediatelyReleasable(FWeakImmediatRelPtr));
-  end;
 
-  { Set busy timeout if requested }
-  TmpInt := StrToIntDef(Info.Values[ConnProps_BusyTimeout], -1);
-  if TmpInt >= 0 then
-    FPlainDriver.sqlite3_busy_timeout(FHandle, TmpInt);
-  FUndefinedVarcharAsStringLength := StrToIntDef(Info.Values[DSProps_UndefVarcharAsStringLength], 0);
-  FSQLiteIntAffinity := StrToBoolEx(Info.Values[DSProps_SQLiteIntAffinity], false);
-
+  S := Info.Values['Cipher'];
+  if S > '' then  // use wxSqlite3mc if Cipher is specified
+    begin                                                  
+      ExecuteImmediat('PRAGMA cipher=' +QuotedStr(S), lcExecute);
+      ExecuteImmediat('PRAGMA key='+ QuotedStr(password), lcExecute);
+      { for zeoslib 7.2
+      Stmt := TZSQLiteStatement.Create(GetPlainDriver, Self, Info, FHandle)
+                 as IZStatement; // <-- Note the IZStatement interface here
+      Stmt.ExecuteUpdate('PRAGMA cipher=' +QuotedStr(S));
+      Stmt.ExecuteUpdate('PRAGMA key='+ QuotedStr(password));}
+    end
+  else
+    if Password > ''  then
+      begin
+        S := lowercase(Info.Values['keyfmt']);
+        if (S <> 'hexkey') and (S<>'textkey') then s := 'key';
+        ExecuteImmediat('PRAGMA '+ S + '='+ QuotedStr(password), lcExecute)
+        { for zeoslib 7.2
+        Stmt := TZSQLiteStatement.Create(GetPlainDriver, Self, Info, FHandle)
+                   as IZStatement; // <-- Note the IZStatement interface here
+        Stmt.ExecuteUpdate('PRAGMA '+ S + '='+ QuotedStr(password), lcExecute);
+        }
+      end
+    else
+      begin
+        { Set busy timeout if requested }
+        TmpInt := StrToIntDef(Info.Values[ConnProps_BusyTimeout], -1);
+        if TmpInt >= 0 then
+          FPlainDriver.sqlite3_busy_timeout(FHandle, TmpInt);
+        FUndefinedVarcharAsStringLength := StrToIntDef(Info.Values[DSProps_UndefVarcharAsStringLength], 0);
+        FSQLiteIntAffinity := StrToBoolEx(Info.Values[DSProps_SQLiteIntAffinity], false);
+      end;
   inherited Open;
 
   { pimp performance }
